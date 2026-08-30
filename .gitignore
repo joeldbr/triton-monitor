@@ -1,0 +1,3 @@
+﻿.venv/
+production_log.log*
+__pycache__/
