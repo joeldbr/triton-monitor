@@ -37,11 +37,11 @@ python app_operator.py --cluster cluster-us-east-01 --mode emergency
 Argumentos:
 
 - `--timeout [0.1-5.0]`: timeout en segundos para las consultas HTTP asíncronas.
-- `--cluster cluster-<region>-<numero>`: identificador opcional de clúster (ej. `cluster-us-east-01`).
+- `--cluster cluster-<region>-<numero>`: identificador opcional de clúster.
 - `--mode {nominal,debug,emergency}`: modo operativo.
   - `nominal`: chequeo estándar de los 3 proveedores.
   - `debug`: inyecta fallos de caos controlados (timeout + status HTTP de error) junto a las consultas nominales.
-  - `emergency`: fuerza un timeout agresivo (≤0.3s) para estresar la resiliencia.
+  - `emergency`: fuerza un timeout agresivo para estresar la resiliencia.
 - `--quiet` / `--verbose`: grupo mutuamente excluyente de salida de texto.
 
 Los logs estructurados en JSON se escriben en `production_log.log`, con
@@ -85,13 +85,6 @@ triton_monitor/
 └── README.md                  # Este documento
 ```
 
-> **Nota técnica:** `QueueHandler.prepare()` pre-formatea por defecto el
-> mensaje y descarta `exc_info` antes de encolar (pensado para
-> `multiprocessing.Queue`, donde el registro debe ser serializable). Como
-> aquí usamos una `queue.Queue` intra-proceso, `ForensicQueueHandler`
-> sobreescribe `prepare()` para reenviar el `LogRecord` intacto, preservando
-> el árbol completo de excepciones hasta que `AsyncJSONFormatter` lo
-> serializa en el hilo del `QueueListener`.
 
 ## Guía de Pruebas de Integración y Validación de la Telemetría
 
@@ -113,7 +106,7 @@ python src/app_operator.py --cluster clusterinvalido
 ```
 
 Resultado esperado: `sanitizer.py` lanza `argparse.ArgumentTypeError`
-antes de que se inicie cualquier lógica asíncrona o de red; la CLI
+antes de que se inicie cualquier lógica asíncrona o de red la CLI
 termina limpiamente con código de salida **2**, sin llegar a tocar el
 bucle de eventos.
 
@@ -133,10 +126,3 @@ fallo por separado, la aplicación **no se cierra abruptamente**, y
 (sub-excepciones, causas raíz encadenadas y notas forenses de
 `add_note()`) en formato JSON.
 
-## Hardening (Hard Gates) cumplidos
-
-- ❌ Nunca se captura `BaseException` ni se silencia con `except: pass`.
-- ❌ Ninguna sentencia `return`, `break` o `continue` dentro de bloques `finally`.
-- ❌ El descriptor de archivo de logs nunca se abre múltiples veces de forma síncrona paralela: toda escritura se canaliza exclusivamente a través de la cola sincronizada (`QueueHandler` → `QueueListener`).
-- ✅ `requirements.txt` con aislamiento de dependencias (`httpx`).
-- ✅ Diagrama de flujo en formato Mermaid (sección anterior).
