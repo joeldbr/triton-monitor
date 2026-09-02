@@ -1,7 +1,4 @@
-"""
-triton_telemetry
 
-"""
 
 from .core import (
     ProviderStatus,
