@@ -2,23 +2,6 @@
 core.py
 =======
 
-Motor de concurrencia y telemetría asíncrona. Este módulo implementa el
-consumo REAL (no simulado) de APIs públicas de internet mediante
-``httpx.AsyncClient`` para modelar el estado operativo de los tres
-proveedores cloud (AWS, Azure, GCP) que opera Tritón Cloud Services.
-
-Cada corrutina de proveedor puede fallar de dos formas realistas:
-
-1. **Timeout de red** (``httpx.TimeoutException``): se re-lanza encadenado
-   como ``ProviderTimeoutError``, agregando contexto forense con
-   ``add_note()``.
-2. **Status HTTP de error** (``httpx.HTTPStatusError`` vía
-   ``response.raise_for_status()``): se re-lanza encadenado como
-   ``CorruptedPayloadError``.
-
-Las tres corrutinas se orquestan en paralelo real dentro de un
-``asyncio.TaskGroup``, que agrupa automáticamente cualquier fallo
-concurrente en un único ``ExceptionGroup``.
 """
 
 from __future__ import annotations
@@ -34,8 +17,6 @@ from .exceptions import (
     ProviderTimeoutError,
 )
 
-# Endpoints nominales: modelan el estado "sano" de cada proveedor
-# reutilizando la API pública gratuita de JSONPlaceholder.
 _PROVIDER_ENDPOINTS: dict[str, str] = {
     "AWS": "https://jsonplaceholder.typicode.com/posts/1",
     "Azure": "https://jsonplaceholder.typicode.com/posts/2",
@@ -59,8 +40,6 @@ async def _fetch_provider_status(
     url: str,
 ) -> ProviderStatus:
     """
-    Consulta el endpoint de telemetría de un único proveedor cloud.
-
     Traduce los fallos nativos de ``httpx`` a la jerarquía semántica de
     excepciones de Tritón, preservando siempre la causa raíz original
     mediante encadenamiento explícito (``raise ... from err``).
@@ -109,9 +88,7 @@ async def _fetch_provider_status(
 async def fetch_timeout_probe(client: httpx.AsyncClient, provider: str = "AWS") -> ProviderStatus:
     """
     Gatillo de timeout real: consulta el endpoint de retardo controlado de
-    httpbin (``/delay/3``), que tarda 3 segundos en responder. Combinado
-    con un ``--timeout`` bajo (ej. 1.0s), dispara de forma real un
-    ``httpx.TimeoutException``.
+    httpbin, que tarda 3 segundos en responder.
     """
     return await _fetch_provider_status(
         client, provider, "https://httpbin.org/delay/3"
@@ -123,8 +100,7 @@ async def fetch_status_probe(
 ) -> ProviderStatus:
     """
     Gatillo de estatus HTTP erróneo: consulta el endpoint parametrizable de
-    httpbin (``/status/<codigo>``) para forzar una respuesta de error real
-    (ej. 504 Gateway Timeout, 422 Unprocessable Entity).
+    httpbin para forzar una respuesta de error real
     """
     return await _fetch_provider_status(
         client, provider, f"https://httpbin.org/status/{status_code}"
@@ -136,22 +112,6 @@ async def scan_all_providers(timeout: float) -> list[ProviderStatus]:
     Orquesta la ejecución paralela y simultánea de las tres consultas de
     telemetría (AWS, Azure, GCP) dentro de un ``asyncio.TaskGroup``.
 
-    Si una o más tareas fallan, ``TaskGroup`` cancela automáticamente las
-    tareas restantes y propaga todos los fallos agrupados en un único
-    ``ExceptionGroup`` — sin necesidad de manejo manual de cancelación.
-
-    Parameters
-    ----------
-    timeout:
-        Timeout máximo (en segundos) aplicado al cliente HTTP asíncrono,
-        validado previamente por ``sanitizer.validate_timeout``.
-
-    Returns
-    -------
-    list[ProviderStatus]
-        Los resultados nominales de los proveedores que respondieron con
-        éxito. Si hubo fallos, se propaga un ``ExceptionGroup`` y esta
-        función nunca retorna.
     """
     results: list[ProviderStatus] = []
 
@@ -178,10 +138,7 @@ async def scan_with_chaos(
 ) -> list[ProviderStatus]:
     """
     Variante de ``scan_all_providers`` usada para pruebas de inyección de
-    caos: además de las tres consultas nominales, agrega sondas
-    adicionales de timeout y/o de status codes de error dentro del MISMO
-    ``asyncio.TaskGroup``, forzando que cualquier fallo real se agrupe en
-    un ``ExceptionGroup`` junto a los resultados exitosos.
+    caos.
     """
     results: list[ProviderStatus] = []
 
