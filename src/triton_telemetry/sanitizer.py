@@ -5,12 +5,9 @@ from __future__ import annotations
 import argparse
 import re
 
-# Rango permitido (en segundos) para el parámetro --timeout.
 _TIMEOUT_MIN = 0.1
 _TIMEOUT_MAX = 5.0
 
-# Patrón estricto para identificadores de clúster: cluster-<region>-<numero>
-# Ejemplos válidos: cluster-us-east-01, cluster-sa-east-12
 _CLUSTER_PATTERN = re.compile(r"^cluster-[a-z]{2}-[a-z]+-\d{2}$")
 
 
