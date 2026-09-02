@@ -1,12 +1,6 @@
 """
 triton_telemetry
-=================
 
-Paquete de telemetría multicloud y observabilidad asíncrona del
-Proyecto Tritón. Este ``__init__.py`` actúa como la frontera de imports
-del paquete: declara explícitamente, mediante ``__all__``, qué objetos se
-exponen cuando otro módulo hace una importación masiva
-(``from triton_telemetry import *``).
 """
 
 from .core import (
